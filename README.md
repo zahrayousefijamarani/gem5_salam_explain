@@ -60,7 +60,7 @@ Then we should do the followings:
 It defined NonCoherentDMA, Stream DMA 0, and Stream DMA 1.
 
 
-## Source Code
+## Source Code for running an application
 
 We should write two parts:
 1. The code that we want to accelerate (algorithm with any compiler optimization).
@@ -76,12 +76,12 @@ For the [host code](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmar
 3. Start accelerator.
 4. Copy data from scratchpad to DRAM. (OUTPUT)
 
-### Step 1 (Set up addresses)
+#### Step 1 (Set up addresses)
 As shown in [define file](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/gemm_clstr_hw_defines.h), we should specify DMA and matrix addresses.
 
 Then we should load these addresses into our [host code](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/hw/top.c#L8).
 
-### Step 2 (Copy input)
+#### Step 2 (Copy input)
 DMA will perform the copy operation between DRAM and the scratchpad memory. A sample code is provided below.
 
 ```c++
@@ -93,9 +93,9 @@ DMA will perform the copy operation between DRAM and the scratchpad memory. A sa
 while ((*DmaFlags & DEV_INTR) != DEV_INTR); \\ Wait for interrupt(finishing job)
 ```
 
-### Step 3 (Start accelerator)
+#### Step 3 (Start accelerator)
 
-#### Flags
+##### Flags
 To start the accelerator, we set its flag to DEV_INIT:
 ```
 *GEMMFlags = DEV_INIT;
@@ -109,7 +109,7 @@ Then we should [wait](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchm
 
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/54d2e724-b707-4d05-bde7-be1980a317a6)
 
-#### Interrupt Service Routine (ISR)
+##### Interrupt Service Routine (ISR)
 In boot code, we setup an Interrupt Service Routine (ISR) in file [isr.c](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/sw/isr.c). By calling this routine, the accelerator triggers to set up the end of the execution. This will reset the accelerator status to 0x0.
 
 ```c++
@@ -118,13 +118,40 @@ void isr(void)
 	printf("Interrupt\n");
 	stage += 1;
 	*top = 0x00;
-	// printf("%d\n", *top);
 	printf("Interrupt finished\n");
 }
 ```
  
-### Step 4 (Copy output)
-We should use the sample code from [step 2](https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#step-2-copy-input), to copy MATRIX3(result of calculation) to m3_addr(destination of the copy).
+#### Step 4 (Copy output)
+We should use the sample code from [step 2](https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#step-2-copy-input), to copy MATRIX3(the result of calculation) to m3_addr(destination of the copy).
+
+### Algorithm 
+The code for gemm application can be found in [gemm.c](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/hw/gemm.c) 
+
+In this code we have loop for multiply, and **#pragma**.
+#### Pragma
+To expose parallelism for computation and memory access we fully unroll a loop of the application. The simulator will natively pipeline the other loop instances for us. To accomplish the loop unrolling we can utilize clang compiler pragmas such as 
+```
+#pragma clang loop unroll_count(8) \\ 8 way parallelism
+```
+This will do operations in parallel as much as it can.
+
+#### Rules
+1. **SINGLE FUNCTION** Only a single function is permitted per accelerator .c file.
+2. **NO LIBRARIES** Cannot use standard library functions. Cannot call into other functions
+3. **No I/O** No prints or writes to files. Either use traces or write back to cpu memory to debug
+4. **Only locals** or args Can only work with variables declared within a function or input arrays.
+
+### Configs
+For each of our accelerators, we also need to generate an yaml file. In each yaml file, we can define the number of cycles for each IR instruction and provide any limitations on the number of Functional Units (FUs) associated with IR instructions. These files can be found in [configs](https://github.com/TeCSAR-UNCC/gem5-SALAM/tree/main/benchmarks/sys_validation/gemm/configs) folder.
+
+## Other type of applications
+- Batch: We can break matrices into two parts(batch) and then write (code)[https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#host-code] twice.
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/55f18a05-be81-449e-bb98-4e742a72e2ba)
+- Cache: The cache model hooks up the accelerator to the global memory through a coherence crossbar. With coherence available the accelerators can directly reference the DRAM space mapped to the CPU. 
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/539fb31b-0d12-483a-aa49-fba58570b34a)
+- Multi-accelerator: We can define multiple accelerators and each of them performs a specific operation.
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/f4d98f13-aba3-4c13-8e28-4ceaf6562a20)
 
 
 ## Refrences
