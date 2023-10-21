@@ -30,7 +30,7 @@ A cluster of accelerators should be defined that stores and defines helper funct
 Python code for [AccCluster](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/src/hwacc/AccCluster.py).
 
 ## Start Application
-
+Some of the images and explanations are from [2].
 We will use the DMA model.
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/e2279940-91c9-4d27-bd7f-7a3003e3203f)
 
@@ -57,8 +57,9 @@ Then we should do the followings:
 4. Connect HWAcc to cluster buses([link](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/configs/SALAM/HWAcc.py#L43))
 
 ### Step 3 (Add DMAs)
-It defined NonCoherentDMA, Stream DMA 0, and Stream DMA 1.
+It defined NonCoherentDMA, Stream DMA 0, and Stream DMA 1. Not all kinds of DMAs used for an application.
 
+Stream DAM includes a control pio. This can be written to by top to control from where in the DRAM data is being streamed. The out port of the StreamDMA engine is wired up to the stream ports of one of the accelerators. Each stream is a single input-single output **FIFO**. Each accelerator has a .stream interface into which all the required streams are wired in. In this case i) we read from the DRAM and send data to accelerator S1. ii) read data from accelerator S3 and write it into stream DMA.
 
 ## Source Code for running an application
 
@@ -146,13 +147,33 @@ This will do operations in parallel as much as it can.
 For each of our accelerators, we also need to generate an yaml file. In each yaml file, we can define the number of cycles for each IR instruction and provide any limitations on the number of Functional Units (FUs) associated with IR instructions. These files can be found in [configs](https://github.com/TeCSAR-UNCC/gem5-SALAM/tree/main/benchmarks/sys_validation/gemm/configs) folder.
 
 ## Other type of applications
-- Batch: We can break matrices into two parts(batch) and then write (code)[https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#host-code] twice.
+- Batch: We can break matrices into two parts(batch) and then write [code](https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#host-code) twice.
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/55f18a05-be81-449e-bb98-4e742a72e2ba)
 - Cache: The cache model hooks up the accelerator to the global memory through a coherence crossbar. With coherence available the accelerators can directly reference the DRAM space mapped to the CPU. 
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/539fb31b-0d12-483a-aa49-fba58570b34a)
 - Multi-accelerator: We can define multiple accelerators and each of them performs a specific operation.
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/f4d98f13-aba3-4c13-8e28-4ceaf6562a20)
 
+## Stream
+### stream arch
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/dfe0ef83-619a-4aa0-8c5e-9649546a4324)
+
+### stream DMA
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/cdc12a75-d3f6-40d8-aa55-e7f6e7eb05b3)
+
+In the host code(top.c), we should connect DRAM to FIFO port.
+```c++
+*StrDmaRdAddr = in_addr;
+*StrDmaRdFrameSize = INPUT_SIZE; // Specifies number of bytes
+*StrDmaNumRdFrames = 1;
+*StrDmaRdFrameBuffSize = 1;
+// Start Stream
+*StrDmaFlags = STR_DMA_INIT_RD | STR_DMA_INIT_WR;
+```
+
+### stream buffer
+Stream buffers establish ports directly between accelerators. 
 
 ## Refrences
 [1] Rogers S, Slycord J, Baharani M, Tabkhi H. gem5-SALAM: A system architecture for LLVM-based accelerator modeling. In2020 53rd Annual IEEE/ACM International Symposium on Microarchitecture (MICRO) 2020 Oct 17 (pp. 471-482). IEEE.
+[2] https://www.cs.sfu.ca/~ashriram/Courses/CS7ARCH/tutorials/gem5-acc/index.html
