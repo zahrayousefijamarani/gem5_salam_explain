@@ -1,4 +1,4 @@
-# gem5_salam_explain
+# gem5 SALAM Explanation
 
 ## Full system architecture
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/c618b3e5-8139-41fa-8287-b48823473370)
@@ -28,6 +28,14 @@ A cluster of accelerators should be defined that stores and defines helper funct
 3. SPM and connections
 4. DMA connections
 Python code for [AccCluster](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/src/hwacc/AccCluster.py).
+
+
+### Stream DMA
+- tick function that checks is there any pending write or read, and then perform them in FIFO order.
+- read and write functions that work with memreg.
+- streamRead and streamWrite that work with FIFO.
+- some other helper functions like status function.
+______
 
 ## Start Application
 Some of the images and explanations are from [2].
