@@ -42,12 +42,12 @@ We have the following steps:
 2. Add accelerator to the cluster
 3. Add DMA devices to the cluster and connect them
 
-### Step one
+### Step 1 (Create cluster)
 After defining AccCluster we should specify the [Accelerator range](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/configs/SALAM/HWAcc.py#L20C9-L20C9). Any accesses to this range from the host code or accelerator are routed to the accelerator cluster.
 
-### Step two
+### Step 2 (Add accelerator)
 for adding an accelerator, we should define a [commIntefrace](https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#communication-interface) as below:
-```
+```c++
 system.acctest.acc = CommInterface(devicename=options.accbench)
 ```
 Then we should do the followings:
@@ -56,8 +56,8 @@ Then we should do the followings:
 3. Connect the accelerator to the system's interrupt controller([link](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/configs/SALAM/HWAcc.py#L40C11-L40C11))
 4. Connect HWAcc to cluster buses([link](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/configs/SALAM/HWAcc.py#L43))
 
-### Step three
-It defined NonCoherentDMA, Stream DMA 0, Stream DMA 1.
+### Step 3 (Add DMAs)
+It defined NonCoherentDMA, Stream DMA 0, and Stream DMA 1.
 
 
 ## Source Code
@@ -66,18 +66,65 @@ We should write two parts:
 1. The code that we want to accelerate (algorithm with any compiler optimization).
 2. Host code of accelerator (computation model of accelerator).
 
-### Host code
-For the host code we should do the following:
+We can start with the Generic Matrix Multiply operation (GEMM) application. It takes 2 matrices as input, multiplies them, and stores the result in another matrix.
 
-1. Set up addresses for scratchpad
+### Host code
+For the [host code](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/hw/top.c), we should do the following:
+
+1. Set up addresses for scratchpad.
 2. Copy data from DRAM into scratchpad. (INPUT)
 3. Start accelerator.
 4. Copy data from scratchpad to DRAM. (OUTPUT)
-  
-### Address Defines
+
+### Step 1 (Set up addresses)
 As shown in [define file](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/gemm_clstr_hw_defines.h), we should specify DMA and matrix addresses.
 
+Then we should load these addresses into our [host code](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/hw/top.c#L8).
 
+### Step 2 (Copy input)
+DMA will perform the copy operation between DRAM and the scratchpad memory. A sample code is provided below.
+
+```c++
+*DmaRdAddr  = m1_addr; \\ source address
+*DmaWrAddr  = MATRIX1; \\ destination address from previous step
+*DmaCopyLen = mat_size;\\ set size for copy
+*DmaFlags   = DEV_INIT;\\ Init DMA operation
+//Poll DMA for finish
+while ((*DmaFlags & DEV_INTR) != DEV_INTR); \\ Wait for interrupt(finishing job)
+```
+
+### Step 3 (Start accelerator)
+
+#### Flags
+To start the accelerator, we set its flag to DEV_INIT:
+```
+*GEMMFlags = DEV_INIT;
+```
+There are 4 possible values for the accelerator:
+- 0x0: inactive
+- 0x1: to start the accelerator.
+- 0x4 active.
+
+Then we should [wait](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/hw/top.c#L33) for the accelerator to acknowledge starting as shown in the image below:
+
+![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/54d2e724-b707-4d05-bde7-be1980a317a6)
+
+#### Interrupt Service Routine (ISR)
+In boot code, we setup an Interrupt Service Routine (ISR) in file [isr.c](https://github.com/TeCSAR-UNCC/gem5-SALAM/blob/main/benchmarks/sys_validation/gemm/sw/isr.c). By calling this routine, the accelerator triggers to set up the end of the execution. This will reset the accelerator status to 0x0.
+
+```c++
+void isr(void)
+{
+	printf("Interrupt\n");
+	stage += 1;
+	*top = 0x00;
+	// printf("%d\n", *top);
+	printf("Interrupt finished\n");
+}
+```
+ 
+### Step 4 (Copy output)
+We should use the sample code from [step 2](https://github.com/zahrayousefijamarani/gem5_salam_explain/edit/main/README.md#step-2-copy-input), to copy MATRIX3(result of calculation) to m3_addr(destination of the copy).
 
 
 ## Refrences
