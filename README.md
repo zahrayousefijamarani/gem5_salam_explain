@@ -1,4 +1,25 @@
-# gem5 SALAM Explanation
+# gem5 SALAM 
+
+## Build
+
+### Dependencies
+```
+sudo apt install build-essential git m4 scons zlib1g zlib1g-dev \
+    libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev \
+    python3-dev python-is-python3 libboost-all-dev pkg-config
+
+sudo apt install llvm-9 llvm-9-tools clang-9
+```
+
+### Clone
+```
+git clone https://github.com/TeCSAR-UNCC/gem5-SALAM
+```
+
+### Build
+```
+scons build/ARM/gem5.opt -j9
+```
 
 ## Full system architecture
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/c618b3e5-8139-41fa-8287-b48823473370)
@@ -184,4 +205,5 @@ Stream buffers establish ports directly between accelerators.
 
 ## Refrences
 [1] Rogers S, Slycord J, Baharani M, Tabkhi H. gem5-SALAM: A system architecture for LLVM-based accelerator modeling. In2020 53rd Annual IEEE/ACM International Symposium on Microarchitecture (MICRO) 2020 Oct 17 (pp. 471-482). IEEE.
+
 [2] https://www.cs.sfu.ca/~ashriram/Courses/CS7ARCH/tutorials/gem5-acc/index.html
