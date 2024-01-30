@@ -21,6 +21,13 @@ git clone https://github.com/TeCSAR-UNCC/gem5-SALAM
 scons build/ARM/gem5.opt -j9
 ```
 
+### Run benchmarks
+```
+cd benckmark/sys-validation/gemm
+make
+./systemValidation.sh -b gemm
+```
+
 ## Full system architecture
 ![image](https://github.com/zahrayousefijamarani/gem5_salam_explain/assets/45602698/c618b3e5-8139-41fa-8287-b48823473370)
 
